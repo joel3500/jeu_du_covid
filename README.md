@@ -1,2 +1,2 @@
 # jeu_du_covid
-Un jeu qui faire un carton sur la toile.
+Un jeu qui va faire un carton sur la toile.
