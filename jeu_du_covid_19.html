@@ -6,13 +6,6 @@
   <style>
     body { margin: 0; overflow: hidden; background: #111; }
     canvas { display: block; }
-    footer {
-      background: #333;
-      color: #fff;
-      padding: 1em;
-      text-align: center;
-      margin-top: 2em;
-    }
   </style>
 </head>
 <body>
@@ -300,17 +293,21 @@ function drawRules() {
   ctx.font = "14px Arial";
   ctx.textAlign = "left";
   const rules = [
-    "*** LE JEU DU COVID ***",
-    "Règles du jeu :",
-    "- Un seul virus Covid-19 apparaît au début.",
-    "- Les virus infectent les cellules (vertes) pour les transformer en jaune, puis les détruisent.",
-    "- Un virus peut décider ou pas d'infecter une cellule. C'est son choix.",
+    "Jeu du COVID-19 ( créé par JOEL SANDÉ, Saguenay ) à but éducatif : j'apprends en m'amusant.",
+    "- Jeu pour faciliter mes apprentissages scolaires.",
+    
+    "- Un seul virus Covid-19 apparaît au début, avec des cellules vertes à protéger.",
+    "- Les virus infectent les cellules (vertes), puis les détruisent.",
+    "- Un virus peu décider de traverser une cellule, ou l'infecter.",
     "- À l'infection, 2 virus se propagent.",
-    "- Cliquez pour créer un vaccin (Moderna, Pfizer ou Novavax).",
+    "- Cliquez sur l'écran pour créer un vaccin (Moderna, Pfizer ou Novavax).",
     "- Les vaccins se déplacent seuls ou peuvent être déplacés avec la souris.",
     "- Au contact d'un vaccin, le virus est éliminé.",
-    "- Si tous les virus disparaissent, cliquez pour générer 10 virus, effacer les vaccins et recréer les cellules.",
-    "- Les vitesses augmentent à chaque re-génération."
+    "- Si tous les virus disparaissent, cliquez pour générer 10 virus, ce qui resset la partie.",
+    "- Les vitesses augmentent à chaque re-génération.",
+    "- ",
+    "- * * * Merci de partager massivement ce jeu éducatif :)"
+     
   ];
   for (let i = 0; i < rules.length; i++) {
     ctx.fillText(rules[i], 10, 20 + i * 18);
@@ -320,7 +317,7 @@ function drawRules() {
 
 function drawScore() {
   // Le score est calculé en minutes depuis le début du jeu.
-  const score = ((Date.now() - startTime) / 60000).toFixed(2);
+  const score = ((Date.now() - startTime) / 1000).toFixed(2);
   ctx.save();
   ctx.fillStyle = "white";
   ctx.font = "20px Arial";
@@ -383,10 +380,5 @@ function animate() {
 
 animate();
 </script>
-
-<footer>
-  <p>&copy; Dylano Shopping - Lancement Été 2025 - Tous droits réservés - Webmaster : Joel Sandé</p>
-</footer>
-
 </body>
 </html>
