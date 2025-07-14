@@ -1,384 +1,337 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <title>Infection Cellulaire par le Covid-19 avec Vaccins Mobiles et Score</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Infection Cellulaire par le Covid-19 - Responsive</title>
   <style>
-    body { margin: 0; overflow: hidden; background: #111; }
-    canvas { display: block; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #111;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
   </style>
 </head>
 <body>
-<canvas id="canvas"></canvas>
-<script>
-// Initialisation du canevas
-const canvas = document.getElementById("canvas");
-const ctx = canvas.getContext("2d");
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+  <canvas id="canvas"></canvas>
+  <script>
+    // Canvas et contexte
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
 
-// Variables globales pour la gestion des vitesses et du score
-let speedFactor = 1.0; // Facteur de vitesse (augmenté lors d'une re-génération)
-const numCells = 10;
-let startTime = Date.now();
+    // Dimensions logiques (sans DPR)
+    let logicalWidth;
+    let logicalHeight;
 
-// Fonction utilitaire pour obtenir une valeur aléatoire entre min et max
-function random(min, max) {
-  return Math.random() * (max - min) + min;
-}
-
-/* ------------------- CLASSES ------------------- */
-
-// Classe représentant une cellule
-class Cell {
-  constructor(x, y, radius) {
-    this.x = x;
-    this.y = y;
-    this.radius = radius;
-    this.infected = false;
-  }
-  draw() {
-    ctx.save();
-    ctx.fillStyle = this.infected ? "yellow" : "green";
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-  }
-}
-
-// Classe représentant un virus (ici, le Covid-19)
-class Virus {
-  constructor(x, y, target) {
-    this.x = x;
-    this.y = y;
-    this.radius = 10;
-    // Vitesse réduite d'un facteur 4, multipliée par le facteur global
-    this.speed = random(1, 2) / 4 * speedFactor;
-    this.target = target;
-    this.calculateVelocity();
-  }
-  calculateVelocity() {
-    const dx = this.target.x - this.x;
-    const dy = this.target.y - this.y;
-    const mag = Math.sqrt(dx * dx + dy * dy);
-    this.vx = (dx / mag) * this.speed;
-    this.vy = (dy / mag) * this.speed;
-  }
-  update() {
-    this.x += this.vx;
-    this.y += this.vy;
-  }
-  draw() {
-    ctx.save();
-    ctx.translate(this.x, this.y);
-    ctx.fillStyle = "red";
-    ctx.beginPath();
-    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
-    ctx.fill();
-    // Dessin des pics caractéristiques
-    for (let i = 0; i < 8; i++) {
-      const angle = i * Math.PI / 4;
-      const spikeLength = this.radius + 5;
-      ctx.beginPath();
-      ctx.moveTo(this.radius * Math.cos(angle), this.radius * Math.sin(angle));
-      ctx.lineTo(spikeLength * Math.cos(angle), spikeLength * Math.sin(angle));
-      ctx.strokeStyle = "red";
-      ctx.lineWidth = 2;
-      ctx.stroke();
+    // Générateur aléatoire
+    function random(min, max) {
+      return Math.random() * (max - min) + min;
     }
-    ctx.font = "10px Arial";
-    ctx.fillStyle = "white";
-    ctx.textAlign = "center";
-    ctx.fillText("Covid-19", 0, this.radius + 15);
-    ctx.restore();
-  }
-}
 
-// Classe représentant un vaccin
-class Vaccine {
-  constructor(x, y, type) {
-    this.x = x;
-    this.y = y;
-    this.radius = 15;
-    this.type = type;
-    // Couleurs selon le type
-    if (type === "Moderna") this.color = "blue";
-    else if (type === "Pfizer") this.color = "white";
-    else if (type === "Novavax") this.color = "orange";
-    // Vitesse autonome : assignation d'une direction aléatoire, multipliée par le facteur global
-    const angle = random(0, 2 * Math.PI);
-    this.speed = 0.5 * speedFactor;
-    this.vx = Math.cos(angle) * this.speed;
-    this.vy = Math.sin(angle) * this.speed;
-  }
-  update() {
-    // Se déplacer seulement si ce vaccin n'est pas en cours de glisser-déposer
-    if (draggedVaccine !== this) {
-      this.x += this.vx;
-      this.y += this.vy;
-      // Rebondir sur les bords du canvas
-      if (this.x - this.radius < 0 || this.x + this.radius > canvas.width) this.vx = -this.vx;
-      if (this.y - this.radius < 0 || this.y + this.radius > canvas.height) this.vy = -this.vy;
-    }
-  }
-  draw() {
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-    ctx.fillStyle = this.color;
-    ctx.fill();
-    ctx.strokeStyle = "black";
-    ctx.stroke();
-    ctx.font = "10px Arial";
-    ctx.fillStyle = "black";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(this.type, this.x, this.y);
-    ctx.restore();
-  }
-}
-
-/* ------------------- VARIABLES DE JEU ------------------- */
-
-let cells = [];
-function createCells() {
-  cells = [];
-  for (let i = 0; i < numCells; i++) {
-    const margin = 100;
-    const x = random(margin, canvas.width - margin);
-    const y = random(margin, canvas.height - margin);
-    const radius = random(20, 40);
-    cells.push(new Cell(x, y, radius));
-  }
-}
-createCells();
-
-let viruses = [];
-let vaccines = [];
-
-// Pour le glisser-déposer
-let draggedVaccine = null;
-let offsetX = 0;
-let offsetY = 0;
-
-/* ------------------- GESTION DES VIRUS ------------------- */
-
-// Choisir aléatoirement une cellule cible parmi celles restantes
-function chooseTarget() {
-  if (cells.length === 0) return null;
-  return cells[Math.floor(random(0, cells.length))];
-}
-
-// Génère un virus depuis un bord de l'écran
-function spawnVirus() {
-  let edge = Math.floor(random(0, 4));
-  let x, y;
-  if (edge === 0) {        // Haut
-    x = random(0, canvas.width);
-    y = -20;
-  } else if (edge === 1) { // Droite
-    x = canvas.width + 20;
-    y = random(0, canvas.height);
-  } else if (edge === 2) { // Bas
-    x = random(0, canvas.width);
-    y = canvas.height + 20;
-  } else {                // Gauche
-    x = -20;
-    y = random(0, canvas.height);
-  }
-  const target = chooseTarget();
-  if (target) viruses.push(new Virus(x, y, target));
-}
-
-function spawnInitialVirus() {
-  spawnVirus();
-}
-spawnInitialVirus();
-
-function checkCollision(obj1, obj2) {
-  const dx = obj1.x - obj2.x;
-  const dy = obj1.y - obj2.y;
-  const distance = Math.sqrt(dx * dx + dy * dy);
-  return distance < obj1.radius + obj2.radius;
-}
-
-function handleInfection(virus) {
-  const target = virus.target;
-  target.infected = true;
-  const virusIndex = viruses.indexOf(virus);
-  if (virusIndex > -1) {
-    viruses.splice(virusIndex, 1);
-  }
-  setTimeout(() => {
-    const cellIndex = cells.indexOf(target);
-    if (cellIndex > -1) {
-      cells.splice(cellIndex, 1);
-    }
-    const numNewViruses = 2;
-    for (let i = 0; i < numNewViruses; i++) {
-      const newTarget = chooseTarget();
-      if (newTarget) {
-        viruses.push(new Virus(virus.x, virus.y, newTarget));
+    // CLASSES
+    class Cell {
+      constructor(x, y, r) {
+        this.x = x;
+        this.y = y;
+        this.radius = r;
+        this.infected = false;
+      }
+      draw() {
+        ctx.fillStyle = this.infected ? 'yellow' : 'green';
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fill();
       }
     }
-  }, 500);
-}
 
-/* ------------------- GESTION DES VACCINS ET DU CLIC ------------------- */
-
-// Au clic sur le canvas :
-// - Si aucun virus n'est présent, créer 10 virus, effacer tous les vaccins et recréer les cellules,
-//   puis augmenter légèrement les vitesses (speedFactor).
-// - Sinon, créer un vaccin à la position cliquée.
-canvas.addEventListener("click", function(event) {
-  const rect = canvas.getBoundingClientRect();
-  const x = event.clientX - rect.left;
-  const y = event.clientY - rect.top;
-  
-  if (viruses.length === 0) {
-    // Réinitialiser le jeu :
-    // - Effacer les vaccins
-    vaccines = [];
-    // - Recréer les cellules
-    createCells();
-    // - Augmenter légèrement le facteur de vitesse
-    speedFactor += 0.2;
-    // - Créer 10 virus
-    for (let i = 0; i < 10; i++) {
-      spawnVirus();
-    }
-  } else {
-    // Si des virus existent, créer un vaccin
-    if (!draggedVaccine) {
-      const types = ["Moderna", "Pfizer", "Novavax"];
-      const type = types[Math.floor(random(0, types.length))];
-      vaccines.push(new Vaccine(x, y, type));
-    }
-  }
-});
-
-// Gestion du glisser-déposer d'un vaccin
-canvas.addEventListener("mousedown", function(event) {
-  const rect = canvas.getBoundingClientRect();
-  const x = event.clientX - rect.left;
-  const y = event.clientY - rect.top;
-  for (let i = vaccines.length - 1; i >= 0; i--) {
-    const vac = vaccines[i];
-    if (checkCollision({x, y, radius: 5}, vac)) {
-      draggedVaccine = vac;
-      offsetX = x - vac.x;
-      offsetY = y - vac.y;
-      break;
-    }
-  }
-});
-canvas.addEventListener("mousemove", function(event) {
-  if (draggedVaccine) {
-    const rect = canvas.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-    draggedVaccine.x = x - offsetX;
-    draggedVaccine.y = y - offsetY;
-  }
-});
-canvas.addEventListener("mouseup", function() {
-  draggedVaccine = null;
-});
-
-/* ------------------- AFFICHAGE DES RÈGLES ET DU SCORE ------------------- */
-function drawRules() {
-  ctx.save();
-  ctx.fillStyle = "white";
-  ctx.font = "14px Arial";
-  ctx.textAlign = "left";
-  const rules = [
-    "Jeu du COVID-19 ( créé par JOEL SANDÉ, Saguenay ) à but éducatif : j'apprends en m'amusant.",
-    "- Jeu pour faciliter mes apprentissages scolaires.",
-    
-    "- Un seul virus Covid-19 apparaît au début, avec des cellules vertes à protéger.",
-    "- Les virus infectent les cellules (vertes), puis les détruisent.",
-    "- Un virus peu décider de traverser une cellule, ou l'infecter.",
-    "- À l'infection, 2 virus se propagent.",
-    "- Cliquez sur l'écran pour créer un vaccin (Moderna, Pfizer ou Novavax).",
-    "- Les vaccins se déplacent seuls ou peuvent être déplacés avec la souris.",
-    "- Au contact d'un vaccin, le virus est éliminé.",
-    "- Si tous les virus disparaissent, cliquez pour générer 10 virus, ce qui resset la partie.",
-    "- Les vitesses augmentent à chaque re-génération.",
-    "- ",
-    "- * * * Merci de partager massivement ce jeu éducatif :)"
-     
-  ];
-  for (let i = 0; i < rules.length; i++) {
-    ctx.fillText(rules[i], 10, 20 + i * 18);
-  }
-  ctx.restore();
-}
-
-function drawScore() {
-  // Le score est calculé en minutes depuis le début du jeu.
-  const score = ((Date.now() - startTime) / 1000).toFixed(2);
-  ctx.save();
-  ctx.fillStyle = "white";
-  ctx.font = "20px Arial";
-  ctx.textAlign = "center";
-  ctx.fillText("Score : " + score, canvas.width / 2, 30);
-  ctx.restore();
-}
-
-/* ------------------- ANIMATION ------------------- */
-function animate() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  
-  // Afficher les règles en haut à gauche
-  drawRules();
-  // Afficher le score en haut au centre
-  drawScore();
-  
-  // Dessiner les cellules
-  for (let cell of cells) {
-    cell.draw();
-  }
-  
-  // Mettre à jour et dessiner les virus
-  for (let i = viruses.length - 1; i >= 0; i--) {
-    const virus = viruses[i];
-    virus.update();
-    virus.draw();
-    
-    if (checkCollision(virus, virus.target)) {
-      handleInfection(virus);
-    }
-    
-    // Collision entre virus et vaccins élimine le virus
-    for (let j = vaccines.length - 1; j >= 0; j--) {
-      const vac = vaccines[j];
-      if (checkCollision(virus, vac)) {
-        viruses.splice(i, 1);
-        break;
+    class Virus {
+      constructor(x, y, target) {
+        this.x = x;
+        this.y = y;
+        this.radius = 10;
+        this.speed = random(1, 2) / 4 * speedFactor;
+        this.target = target;
+        this.calcVel();
+      }
+      calcVel() {
+        const dx = this.target.x - this.x;
+        const dy = this.target.y - this.y;
+        const mag = Math.hypot(dx, dy);
+        this.vx = dx / mag * this.speed;
+        this.vy = dy / mag * this.speed;
+      }
+      update() {
+        this.x += this.vx;
+        this.y += this.vy;
+      }
+      draw() {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        // Corps
+        ctx.fillStyle = 'red';
+        ctx.beginPath();
+        ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+        ctx.fill();
+        // Piquants
+        for (let i = 0; i < 8; i++) {
+          const ang = i * Math.PI / 4;
+          ctx.beginPath();
+          ctx.moveTo(this.radius * Math.cos(ang), this.radius * Math.sin(ang));
+          ctx.lineTo((this.radius + 5) * Math.cos(ang), (this.radius + 5) * Math.sin(ang));
+          ctx.strokeStyle = 'red';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
+        // Label
+        const fs = Math.max(10, logicalWidth * 0.01);
+        ctx.font = `${fs}px Arial`;
+        ctx.fillStyle = 'white';
+        ctx.textAlign = 'center';
+        ctx.fillText('Covid-19', 0, this.radius + fs + 2);
+        ctx.restore();
       }
     }
-  }
-  
-  // Mettre à jour et dessiner les vaccins
-  for (let vac of vaccines) {
-    vac.update();
-    vac.draw();
-  }
-  
-  if (cells.length === 0) {
-    ctx.save();
-    ctx.fillStyle = "red";
-    ctx.font = "48px Arial";
-    ctx.textAlign = "center";
-    ctx.fillText("Toutes les cellules ont été infectées!", canvas.width / 2, canvas.height / 2);
-    ctx.restore();
-  } else {
-    requestAnimationFrame(animate);
-  }
-}
 
-animate();
-</script>
+    class Vaccine {
+      constructor(x, y, type) {
+        this.x = x;
+        this.y = y;
+        this.radius = 15;
+        this.type = type;
+        this.color = type === 'Moderna'
+          ? 'blue'
+          : type === 'Pfizer'
+            ? 'white'
+            : 'orange';
+        const ang = random(0, 2 * Math.PI);
+        this.speed = 0.5 * speedFactor;
+        this.vx = Math.cos(ang) * this.speed;
+        this.vy = Math.sin(ang) * this.speed;
+      }
+      update() {
+        if (draggedVaccine !== this) {
+          this.x += this.vx;
+          this.y += this.vy;
+          if (this.x - this.radius < 0 || this.x + this.radius > logicalWidth) this.vx *= -1;
+          if (this.y - this.radius < 0 || this.y + this.radius > logicalHeight) this.vy *= -1;
+        }
+      }
+      draw() {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fillStyle = this.color;
+        ctx.fill();
+        ctx.strokeStyle = 'black';
+        ctx.stroke();
+        const fs = Math.max(10, logicalWidth * 0.01);
+        ctx.font = `${fs}px Arial`;
+        ctx.fillStyle = 'black';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(this.type, this.x, this.y);
+      }
+    }
+
+    // VARIABLES DE JEU
+    let speedFactor = 1.0;
+    const numCells = 10;
+    let startTime = Date.now();
+
+    let cells = [];
+    let viruses = [];
+    let vaccines = [];
+    let draggedVaccine = null;
+    let offX = 0;
+    let offY = 0;
+
+    // Création initiale
+    function createCells() {
+      cells = [];
+      for (let i = 0; i < numCells; i++) {
+        const m = 80;
+        const x = random(m, logicalWidth - m);
+        const y = random(m, logicalHeight - m);
+        const r = random(20, 40);
+        cells.push(new Cell(x, y, r));
+      }
+    }
+    function chooseTarget() {
+      return cells.length
+        ? cells[Math.floor(random(0, cells.length))]
+        : null;
+    }
+    function spawnVirus() {
+      const edge = Math.floor(random(0, 4));
+      let x, y;
+      if (edge === 0) { x = random(0, logicalWidth); y = -20; }
+      else if (edge === 1) { x = logicalWidth + 20; y = random(0, logicalHeight); }
+      else if (edge === 2) { x = random(0, logicalWidth); y = logicalHeight + 20; }
+      else { x = -20; y = random(0, logicalHeight); }
+      const t = chooseTarget();
+      if (t) viruses.push(new Virus(x, y, t));
+    }
+
+    // Démarrage
+    function init() {
+      logicalWidth = window.innerWidth;
+      logicalHeight = window.innerHeight;
+      createCells();
+      // Crée quelques virus initiaux
+      viruses = [];
+      for (let i = 0; i < 5; i++) spawnVirus();
+      resizeCanvas();
+      animate();
+    }
+
+    // Resize et recalcule positions proportionnelles
+    function resizeCanvas() {
+      const newW = window.innerWidth;
+      const newH = window.innerHeight;
+      const scaleX = newW / logicalWidth;
+      const scaleY = newH / logicalHeight;
+      // Redimensionne positions
+      cells.forEach(c => { c.x *= scaleX; c.y *= scaleY; });
+      viruses.forEach(v => { v.x *= scaleX; v.y *= scaleY; });
+      vaccines.forEach(v => { v.x *= scaleX; v.y *= scaleY; });
+      logicalWidth = newW;
+      logicalHeight = newH;
+      // Ajuste le canvas en pixels
+      const dpr = window.devicePixelRatio || 1;
+      canvas.style.width = newW + 'px';
+      canvas.style.height = newH + 'px';
+      canvas.width = newW * dpr;
+      canvas.height = newH * dpr;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.scale(dpr, dpr);
+    }
+    window.addEventListener('resize', resizeCanvas);
+
+    // Collision simple
+    function checkCollision(a, b) {
+      return Math.hypot(a.x - b.x, a.y - b.y) < a.radius + b.radius;
+    }
+
+    function handleInfection(v) {
+      v.target.infected = true;
+      viruses = viruses.filter(x => x !== v);
+      setTimeout(() => {
+        cells = cells.filter(c => c !== v.target);
+        for (let i = 0; i < 2; i++) {
+          const nt = chooseTarget();
+          if (nt) viruses.push(new Virus(v.x, v.y, nt));
+        }
+      }, 500);
+    }
+
+    // Interactions souris/clic
+    canvas.addEventListener('click', e => {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      if (!viruses.length) {
+        vaccines = [];
+        createCells();
+        speedFactor += 0.2;
+        for (let i = 0; i < 10; i++) spawnVirus();
+      } else if (!draggedVaccine) {
+        const types = ['Moderna', 'Pfizer', 'Novavax'];
+        vaccines.push(new Vaccine(x, y, types[Math.floor(random(0, 3))]));
+      }
+    });
+    canvas.addEventListener('mousedown', e => {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      vaccines.slice().reverse().forEach(v => {
+        if (!draggedVaccine && checkCollision({ x, y, radius: 5 }, v)) {
+          draggedVaccine = v;
+          offX = x - v.x;
+          offY = y - v.y;
+        }
+      });
+    });
+    canvas.addEventListener('mousemove', e => {
+      if (draggedVaccine) {
+        const rect = canvas.getBoundingClientRect();
+        draggedVaccine.x = e.clientX - rect.left - offX;
+        draggedVaccine.y = e.clientY - rect.top - offY;
+      }
+    });
+    canvas.addEventListener('mouseup', () => { draggedVaccine = null; });
+
+    // Affichage règles & score
+    function drawRules() {
+      ctx.fillStyle = 'white';
+      const fs = Math.max(12, logicalWidth * 0.012);
+      ctx.font = `${fs}px Arial`;
+      ctx.textAlign = 'left';
+      const rules = [
+        "Jeu du COVID-19 ( créé par Joel Sandé, Saguenay ) à but éducatif : j'apprends en m'amusant.",
+        "- Jeu pour faciliter un apprentissage scolaire.",
+        "- Un seul virus Covid-19 apparaît au début, avec des cellules vertes à protéger.",
+        "- Les virus infectent les cellules (vertes), puis les détruisent.",
+        "- Un virus peu décider de traverser une cellule, ou l'infecter.",
+        "- À l'infection, 2 virus se propagent.",
+        "- Cliquez sur l'écran pour créer un vaccin (Moderna, Pfizer ou Novavax).",
+        "- Les vaccins se déplacent seuls ou peuvent être déplacés avec la souris.",
+        "- Au contact d'un vaccin, le virus est éliminé.",
+        "- Si tous les virus disparaissent, cliquez pour générer 10 virus, ce qui resset la partie.",
+        "- Les vitesses augmentent à chaque re-génération.",
+        "- ",
+        "- * * * Merci de partager massivement ce jeu éducatif :)"
+      ];
+      rules.forEach((t, i) => ctx.fillText(t, 10, 20 + i * (fs + 4)));
+    }
+
+    function drawScore() {
+      const sc = ((Date.now() - startTime) / 1000).toFixed(2);
+      ctx.fillStyle = 'white';
+      const fs = Math.max(16, logicalWidth * 0.02);
+      ctx.font = `${fs}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.fillText('Score : ' + sc, logicalWidth / 2, fs + 10);
+    }
+
+    // Boucle d'animation
+    function animate() {
+      ctx.clearRect(0, 0, logicalWidth, logicalHeight);
+      drawRules();
+      drawScore();
+      cells.forEach(c => c.draw());
+      for (let i = viruses.length - 1; i >= 0; i--) {
+        const v = viruses[i];
+        v.update();
+        v.draw();
+        if (checkCollision(v, v.target)) handleInfection(v);
+        for (let j = vaccines.length - 1; j >= 0; j--) {
+          if (checkCollision(v, vaccines[j])) {
+            viruses.splice(i, 1);
+            break;
+          }
+        }
+      }
+      vaccines.forEach(v => { v.update(); v.draw(); });
+      if (!cells.length) {
+        ctx.fillStyle = 'red';
+        const fs = Math.max(30, logicalWidth * 0.04);
+        ctx.font = `${fs}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.fillText('Toutes les cellules ont été infectées!', logicalWidth / 2, logicalHeight / 2);
+      } else {
+        requestAnimationFrame(animate);
+      }
+    }
+
+    // Initialise tout
+    init();
+  </script>
 </body>
 </html>
