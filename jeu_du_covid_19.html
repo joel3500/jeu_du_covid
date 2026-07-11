@@ -18,11 +18,15 @@
       width: 100%;
       height: 100%;
     }
-    #toggleRulesBtn {
+    #topButtons {
       position: fixed;
       top: 10px;
       right: 10px;
       z-index: 10;
+      display: flex;
+      gap: 8px;
+    }
+    #topButtons button {
       padding: 6px 10px;
       font-family: Arial, sans-serif;
       font-size: 13px;
@@ -32,13 +36,16 @@
       border-radius: 4px;
       cursor: pointer;
     }
-    #toggleRulesBtn:hover {
+    #topButtons button:hover {
       background: rgba(255, 255, 255, 0.3);
     }
   </style>
 </head>
 <body>
-  <button id="toggleRulesBtn">Masquer les instructions</button>
+  <div id="topButtons">
+    <button id="resetBtn">Réinitialiser la partie</button>
+    <button id="toggleRulesBtn">Masquer les instructions</button>
+  </div>
   <canvas id="canvas"></canvas>
   <script>
     // Canvas et contexte
@@ -292,17 +299,22 @@
       }, 500);
     }
 
+    function resetGame() {
+      vaccines = [];
+      viruses = [];
+      createCells();
+      speedFactor += 0.2;
+      levelUp();
+      for (let i = 0; i < 10; i++) spawnVirus();
+    }
+
     // Interactions souris/clic
     canvas.addEventListener('click', e => {
       const rect = canvas.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
       if (!viruses.length || !cells.length) {
-        vaccines = [];
-        createCells();
-        speedFactor += 0.2;
-        levelUp();
-        for (let i = 0; i < 10; i++) spawnVirus();
+        resetGame();
       } else if (!draggedVaccine) {
         const types = ['Moderna', 'Pfizer', 'Novavax'];
         vaccines.push(new Vaccine(x, y, types[Math.floor(random(0, 3))]));
@@ -328,6 +340,9 @@
       }
     });
     canvas.addEventListener('mouseup', () => { draggedVaccine = null; });
+
+    // Bouton de réinitialisation manuelle (au cas où la partie resterait bloquée)
+    document.getElementById('resetBtn').addEventListener('click', resetGame);
 
     // Bouton d'affichage/masquage des instructions
     const toggleRulesBtn = document.getElementById('toggleRulesBtn');
@@ -361,7 +376,8 @@
         "- * * * Merci de partager massivement ce jeu éducatif :)"
       ];
       const scoreFs = Math.max(16, logicalWidth * 0.02);
-      const startY = scoreFs + 10 + 25; // décalé sous l'affichage du score
+      const compteurFs = Math.max(12, logicalWidth * 0.012);
+      const startY = scoreTopOffset + scoreFs + compteurFs + 6 + 25; // décalé sous l'affichage du score et le compteur
       const maxWidth = logicalWidth - 20;
       const wrappedLines = [];
       rules.forEach(t => {
@@ -399,6 +415,9 @@
       return ((scoreElapsedMs + activeMs) / 1000).toFixed(2);
     }
 
+    // Espace réservé en haut pour ne pas chevaucher les boutons (Réinitialiser / Masquer les instructions)
+    const scoreTopOffset = 50;
+
     function drawScore() {
       const sc = getScoreSeconds();
       ctx.fillStyle = 'white';
@@ -407,7 +426,10 @@
       ctx.textAlign = 'center';
       const badge = getBadge(level);
       const niveauTxt = `   Niveau ${level}${badge ? ' ' + badge : ''}   (Record : ${recordLevel}, ${recordHolder} · Votre meilleur : ${personalBest})`;
-      ctx.fillText('Score : ' + sc + niveauTxt, logicalWidth / 2, fs + 10);
+      ctx.fillText('Score : ' + sc + niveauTxt, logicalWidth / 2, scoreTopOffset + fs);
+      const compteurFs = Math.max(12, logicalWidth * 0.012);
+      ctx.font = `${compteurFs}px Arial`;
+      ctx.fillText(`Virus actifs : ${viruses.length}   Cellules restantes : ${cells.length}   Vaccins : ${vaccines.length}`, logicalWidth / 2, scoreTopOffset + fs + compteurFs + 6);
     }
 
     function drawLevelUpBanner() {
