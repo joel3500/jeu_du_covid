@@ -377,7 +377,7 @@
       ];
       const scoreFs = Math.max(16, logicalWidth * 0.02);
       const compteurFs = Math.max(12, logicalWidth * 0.012);
-      const startY = scoreTopOffset + scoreFs + compteurFs + 6 + 25; // décalé sous l'affichage du score et le compteur
+      const startY = scoreTopOffset + scoreFs * 2 + 4 + compteurFs + 6 + 25; // décalé sous l'affichage du record, du score et le compteur
       const maxWidth = logicalWidth - 20;
       const wrappedLines = [];
       rules.forEach(t => {
@@ -425,11 +425,13 @@
       ctx.font = `${fs}px Arial`;
       ctx.textAlign = 'center';
       const badge = getBadge(level);
-      const niveauTxt = `   Niveau ${level}${badge ? ' ' + badge : ''}   (Record : ${recordLevel}, ${recordHolder} · Votre meilleur : ${personalBest})`;
-      ctx.fillText('Score : ' + sc + niveauTxt, logicalWidth / 2, scoreTopOffset + fs);
+      const recordTxt = `(Record : ${recordLevel}, ${recordHolder} · Votre meilleur : ${personalBest})`;
+      ctx.fillText(recordTxt, logicalWidth / 2, scoreTopOffset + fs);
+      const scoreNiveauTxt = `Score : ${sc}   Niveau ${level}${badge ? ' ' + badge : ''}`;
+      ctx.fillText(scoreNiveauTxt, logicalWidth / 2, scoreTopOffset + fs * 2 + 4);
       const compteurFs = Math.max(12, logicalWidth * 0.012);
       ctx.font = `${compteurFs}px Arial`;
-      ctx.fillText(`Virus actifs : ${viruses.length}   Cellules restantes : ${cells.length}   Vaccins : ${vaccines.length}`, logicalWidth / 2, scoreTopOffset + fs + compteurFs + 6);
+      ctx.fillText(`Virus actifs : ${viruses.length}   Cellules restantes : ${cells.length}   Vaccins : ${vaccines.length}`, logicalWidth / 2, scoreTopOffset + fs * 2 + 4 + compteurFs + 6);
     }
 
     function drawLevelUpBanner() {
