@@ -18,9 +18,27 @@
       width: 100%;
       height: 100%;
     }
+    #toggleRulesBtn {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      z-index: 10;
+      padding: 6px 10px;
+      font-family: Arial, sans-serif;
+      font-size: 13px;
+      background: rgba(255, 255, 255, 0.15);
+      color: white;
+      border: 1px solid rgba(255, 255, 255, 0.5);
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    #toggleRulesBtn:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
   </style>
 </head>
 <body>
+  <button id="toggleRulesBtn">Masquer les instructions</button>
   <canvas id="canvas"></canvas>
   <script>
     // Canvas et contexte
@@ -143,7 +161,12 @@
     // VARIABLES DE JEU
     let speedFactor = 1.0;
     const numCells = 10;
-    let startTime = Date.now();
+
+    // Chronomètre du score : se fige à la fin d'une partie (victoire ou défaite)
+    // et reprend seulement quand les 10 nouveaux virus sont générés.
+    let scoreElapsedMs = 0;
+    let scoreActiveStart = Date.now();
+    let scorePaused = false;
 
     let cells = [];
     let viruses = [];
@@ -151,6 +174,44 @@
     let draggedVaccine = null;
     let offX = 0;
     let offY = 0;
+    let showRules = true;
+
+    // Niveaux et gamification
+    let level = 0;
+    let levelUpMessage = '';
+    let levelUpUntil = 0;
+
+    // Record officiel affiché : mis à jour manuellement selon les captures d'écran reçues par courriel
+    const recordLevel = 9;
+    const recordHolder = 'Luc Tremblay';
+
+    // Meilleur niveau personnel du joueur, suivi automatiquement sur cet appareil (localStorage)
+    let personalBest = parseInt(localStorage.getItem('covidGamePersonalBest') || '0', 10);
+
+    // Récompenses virtuelles débloquées selon le niveau atteint
+    function getBadge(lvl) {
+      if (lvl <= 0) return '';
+      if (lvl === 1) return '🥉 Recrue';
+      if (lvl === 2) return '🥈 Combattant';
+      if (lvl === 3) return '🥇 Vétéran';
+      if (lvl === 4) return '🏅 Expert';
+      if (lvl === 5) return '🏆 Champion';
+      return '👑 Légende';
+    }
+
+    function levelUp() {
+      level++;
+      if (level > personalBest) {
+        personalBest = level;
+        localStorage.setItem('covidGamePersonalBest', String(personalBest));
+      }
+      const beatsRecord = level > recordLevel;
+      const badge = getBadge(level);
+      levelUpMessage = beatsRecord
+        ? `Niveau ${level} — ${badge} — VOUS DÉPASSEZ LE RECORD !`
+        : `Niveau ${level} — ${badge}`;
+      levelUpUntil = Date.now() + 2500;
+    }
 
     // Création initiale
     function createCells() {
@@ -184,7 +245,7 @@
       logicalWidth = window.innerWidth;
       logicalHeight = window.innerHeight;
       createCells();
-      // Crée quelques virus initiaux
+      // Seulement 5 virus au tout premier lancement, pour laisser le temps de lire les règles
       viruses = [];
       for (let i = 0; i < 5; i++) spawnVirus();
       resizeCanvas();
@@ -199,8 +260,8 @@
       const scaleY = newH / logicalHeight;
       // Redimensionne positions
       cells.forEach(c => { c.x *= scaleX; c.y *= scaleY; });
-      viruses.forEach(v => { v.x *= scaleX; v.y *= scaleY; });
-      vaccines.forEach(v => { v.x *= scaleX; v.y *= scaleY; });
+      viruses.forEach(v => { v.x *= scaleX; v.y *= scaleY; v.vx *= scaleX; v.vy *= scaleY; });
+      vaccines.forEach(v => { v.x *= scaleX; v.y *= scaleY; v.vx *= scaleX; v.vy *= scaleY; });
       logicalWidth = newW;
       logicalHeight = newH;
       // Ajuste le canvas en pixels
@@ -236,10 +297,11 @@
       const rect = canvas.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
-      if (!viruses.length) {
+      if (!viruses.length || !cells.length) {
         vaccines = [];
         createCells();
         speedFactor += 0.2;
+        levelUp();
         for (let i = 0; i < 10; i++) spawnVirus();
       } else if (!draggedVaccine) {
         const types = ['Moderna', 'Pfizer', 'Novavax'];
@@ -267,8 +329,16 @@
     });
     canvas.addEventListener('mouseup', () => { draggedVaccine = null; });
 
+    // Bouton d'affichage/masquage des instructions
+    const toggleRulesBtn = document.getElementById('toggleRulesBtn');
+    toggleRulesBtn.addEventListener('click', () => {
+      showRules = !showRules;
+      toggleRulesBtn.textContent = showRules ? 'Masquer les instructions' : 'Afficher les instructions';
+    });
+
     // Affichage règles & score
     function drawRules() {
+      if (!showRules) return;
       ctx.fillStyle = 'white';
       const fs = Math.max(12, logicalWidth * 0.012);
       ctx.font = `${fs}px Arial`;
@@ -285,26 +355,77 @@
         "- Au contact d'un vaccin, le virus est éliminé.",
         "- Si tous les virus disparaissent, cliquez pour générer 10 virus, ce qui resset la partie.",
         "- Les vitesses augmentent à chaque re-génération.",
+        "- Le niveau augmente à chaque re-génération : débloquez des titres (🥉🥈🥇🏅🏆👑) !",
+        "- Si vous dépassez le niveau 5, prenez une capture d'écran et envoyez-la à oremi.joel@gmail.com : à la fin de chaque mois, 10 personnes seront sélectionnées parmi les courriels reçus pour recevoir des cadeaux !",
         "- ",
         "- * * * Merci de partager massivement ce jeu éducatif :)"
       ];
-      rules.forEach((t, i) => ctx.fillText(t, 10, 20 + i * (fs + 4)));
+      const scoreFs = Math.max(16, logicalWidth * 0.02);
+      const startY = scoreFs + 10 + 25; // décalé sous l'affichage du score
+      const maxWidth = logicalWidth - 20;
+      const wrappedLines = [];
+      rules.forEach(t => {
+        const words = t.split(' ');
+        let line = '';
+        words.forEach(word => {
+          const testLine = line ? line + ' ' + word : word;
+          if (ctx.measureText(testLine).width > maxWidth && line) {
+            wrappedLines.push(line);
+            line = word;
+          } else {
+            line = testLine;
+          }
+        });
+        wrappedLines.push(line);
+      });
+      wrappedLines.forEach((t, i) => ctx.fillText(t, 10, startY + i * (fs + 4)));
+    }
+
+    // Fige le chronomètre dès que la partie est terminée (plus de virus ou plus de cellules),
+    // et le relance seulement quand une nouvelle partie (10 virus) est générée.
+    function updateScoreClock() {
+      const roundOver = !viruses.length || !cells.length;
+      if (roundOver && !scorePaused) {
+        scoreElapsedMs += Date.now() - scoreActiveStart;
+        scorePaused = true;
+      } else if (!roundOver && scorePaused) {
+        scoreActiveStart = Date.now();
+        scorePaused = false;
+      }
+    }
+
+    function getScoreSeconds() {
+      const activeMs = scorePaused ? 0 : (Date.now() - scoreActiveStart);
+      return ((scoreElapsedMs + activeMs) / 1000).toFixed(2);
     }
 
     function drawScore() {
-      const sc = ((Date.now() - startTime) / 1000).toFixed(2);
+      const sc = getScoreSeconds();
       ctx.fillStyle = 'white';
       const fs = Math.max(16, logicalWidth * 0.02);
       ctx.font = `${fs}px Arial`;
       ctx.textAlign = 'center';
-      ctx.fillText('Score : ' + sc, logicalWidth / 2, fs + 10);
+      const badge = getBadge(level);
+      const niveauTxt = `   Niveau ${level}${badge ? ' ' + badge : ''}   (Record : ${recordLevel}, ${recordHolder} · Votre meilleur : ${personalBest})`;
+      ctx.fillText('Score : ' + sc + niveauTxt, logicalWidth / 2, fs + 10);
+    }
+
+    function drawLevelUpBanner() {
+      if (Date.now() >= levelUpUntil) return;
+      const fs = Math.max(22, logicalWidth * 0.03);
+      ctx.font = `bold ${fs}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.fillStyle = 'gold';
+      ctx.fillText(levelUpMessage, logicalWidth / 2, logicalHeight * 0.15);
     }
 
     // Boucle d'animation
     function animate() {
+      updateScoreClock();
       ctx.clearRect(0, 0, logicalWidth, logicalHeight);
       drawRules();
       drawScore();
+      drawLevelUpBanner();
       cells.forEach(c => c.draw());
       for (let i = viruses.length - 1; i >= 0; i--) {
         const v = viruses[i];
@@ -325,9 +446,8 @@
         ctx.font = `${fs}px Arial`;
         ctx.textAlign = 'center';
         ctx.fillText('Toutes les cellules ont été infectées!', logicalWidth / 2, logicalHeight / 2);
-      } else {
-        requestAnimationFrame(animate);
       }
+      requestAnimationFrame(animate);
     }
 
     // Initialise tout
