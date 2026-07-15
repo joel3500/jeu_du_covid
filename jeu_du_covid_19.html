@@ -41,8 +41,10 @@
     }
     #langSwitcher {
       position: fixed;
-      top: 10px;
-      left: 10px;
+      top: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      margin-top: 10px;
       z-index: 10;
       display: flex;
       gap: 8px;
@@ -82,7 +84,7 @@
         showRules: "Afficher les instructions",
         hideRules: "Masquer les instructions",
         rules: [
-          "Jeu du COVID-19 ( créé par Joel Sandé, Saguenay ) à but éducatif : j'apprends en m'amusant.",
+          "Jeu du COVID-19 ( créé par Joel Sandé, Saguenay lac Saint-Jean ) à but éducatif : j'apprends en m'amusant.",
           "- Jeu pour faciliter un apprentissage scolaire.",
           "- Un seul virus Covid-19 apparaît au début, avec des cellules vertes à protéger.",
           "- Les virus infectent les cellules (vertes), puis les détruisent.",
@@ -112,7 +114,7 @@
         showRules: "Show instructions",
         hideRules: "Hide instructions",
         rules: [
-          "COVID-19 Game (created by Joel Sandé, Saguenay) for educational purposes: learning while having fun.",
+          "COVID-19 Game (created by Joel Sandé, Saguenay lac Saint-Jean) for educational purposes: learning while having fun.",
           "- A game to support school learning.",
           "- A single COVID-19 virus appears at the start, with green cells to protect.",
           "- Viruses infect cells (green), then destroy them.",
@@ -142,7 +144,7 @@
         showRules: "Mostrar instrucciones",
         hideRules: "Ocultar instrucciones",
         rules: [
-          "Juego del COVID-19 (creado por Joel Sandé, Saguenay) con fines educativos: aprendo divirtiéndome.",
+          "Juego del COVID-19 (creado por Joel Sandé, Saguenay lac Saint-Jean) con fines educativos: aprendo divirtiéndome.",
           "- Juego para facilitar el aprendizaje escolar.",
           "- Al principio aparece un único virus Covid-19, con células verdes que proteger.",
           "- Los virus infectan las células (verdes) y luego las destruyen.",
@@ -172,7 +174,7 @@
         showRules: "Anleitung anzeigen",
         hideRules: "Anleitung ausblenden",
         rules: [
-          "COVID-19-Spiel (erstellt von Joel Sandé, Saguenay) zu Bildungszwecken: Lernen mit Spaß.",
+          "COVID-19-Spiel (erstellt von Joel Sandé, Saguenay lac Saint-Jean) zu Bildungszwecken: Lernen mit Spaß.",
           "- Spiel zur Unterstützung des schulischen Lernens.",
           "- Zu Beginn erscheint nur ein einziges Covid-19-Virus, mit grünen Zellen, die es zu schützen gilt.",
           "- Die Viren infizieren die Zellen (grün) und zerstören sie dann.",
@@ -202,7 +204,7 @@
         showRules: "Mostra istruzioni",
         hideRules: "Nascondi istruzioni",
         rules: [
-          "Gioco del COVID-19 (creato da Joel Sandé, Saguenay) a scopo educativo: imparo divertendomi.",
+          "Gioco del COVID-19 (creato da Joel Sandé, Saguenay lac Saint-Jean) a scopo educativo: imparo divertendomi.",
           "- Gioco per facilitare l'apprendimento scolastico.",
           "- All'inizio appare un solo virus Covid-19, con cellule verdi da proteggere.",
           "- I virus infettano le cellule (verdi), poi le distruggono.",
@@ -578,7 +580,7 @@
     }
 
     // Espace réservé en haut pour ne pas chevaucher les boutons (Réinitialiser / Masquer les instructions)
-    const scoreTopOffset = 50;
+    const scoreTopOffset = 80;
 
     function drawScore() {
       const sc = getScoreSeconds();
