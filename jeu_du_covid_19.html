@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Jeu du COVID-19 - par Joel Sandé</title>
+  <title>le Jeu du COVID-19</title>
   <style>
     html, body {
       margin: 0;
@@ -39,6 +39,31 @@
     #topButtons button:hover {
       background: rgba(255, 255, 255, 0.3);
     }
+    #langSwitcher {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      z-index: 10;
+      display: flex;
+      gap: 8px;
+    }
+    .lang-btn {
+      padding: 6px 10px;
+      font-family: Arial, sans-serif;
+      font-size: 13px;
+      background: rgba(255, 255, 255, 0.15);
+      color: white;
+      border: 1px solid rgba(255, 255, 255, 0.5);
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .lang-btn:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+    .lang-btn.active {
+      background: rgba(255, 255, 255, 0.4);
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
@@ -46,8 +71,166 @@
     <button id="resetBtn">Réinitialiser la partie</button>
     <button id="toggleRulesBtn">Masquer les instructions</button>
   </div>
+  <div id="langSwitcher"></div>
   <canvas id="canvas"></canvas>
   <script>
+    // Traductions (FR/EN/ES/DE/IT)
+    const COVID_TRANSLATIONS = {
+      fr: {
+        title: "le Jeu du COVID-19",
+        resetBtn: "Réinitialiser la partie",
+        showRules: "Afficher les instructions",
+        hideRules: "Masquer les instructions",
+        rules: [
+          "Jeu du COVID-19 ( créé par Joel Sandé, Saguenay ) à but éducatif : j'apprends en m'amusant.",
+          "- Jeu pour faciliter un apprentissage scolaire.",
+          "- Un seul virus Covid-19 apparaît au début, avec des cellules vertes à protéger.",
+          "- Les virus infectent les cellules (vertes), puis les détruisent.",
+          "- Un virus peut décider de traverser une cellule, ou l'infecter.",
+          "- À l'infection, 2 virus se propagent.",
+          "- Cliquez sur l'écran pour créer un vaccin (Moderna, Pfizer ou Novavax).",
+          "- Les vaccins se déplacent seuls ou peuvent être déplacés avec la souris.",
+          "- Au contact d'un vaccin, le virus est éliminé.",
+          "- Si tous les virus disparaissent, cliquez pour générer 10 virus, ce qui reset la partie.",
+          "- Les vitesses augmentent à chaque re-génération.",
+          "- Le niveau augmente à chaque re-génération : débloquez des titres (🥉🥈🥇🏅🏆👑) !",
+          "- Si vous dépassez le niveau 5, prenez une capture d'écran et envoyez-la à oremi.joel@gmail.com : à la fin de chaque mois, 10 personnes seront sélectionnées parmi les courriels reçus pour recevoir des cadeaux !",
+          "- ",
+          "- * * * Merci de partager massivement ce jeu éducatif :)"
+        ],
+        badges: ['', '🥉 Recrue', '🥈 Combattant', '🥇 Vétéran', '🏅 Expert', '🏆 Champion', '👑 Légende'],
+        levelUpNormal: (level, badge) => `Niveau ${level} — ${badge}`,
+        levelUpRecord: (level, badge) => `Niveau ${level} — ${badge} — VOUS DÉPASSEZ LE RECORD !`,
+        recordText: (recordLevel, recordHolder, personalBest) => `(Record : ${recordLevel}, ${recordHolder} · Votre meilleur : ${personalBest})`,
+        scoreText: (sc, level, badge) => `Score : ${sc}   Niveau ${level}${badge ? ' ' + badge : ''}`,
+        countersText: (v, c, vac) => `Virus actifs : ${v}   Cellules restantes : ${c}   Vaccins : ${vac}`,
+        gameOver: "Toutes les cellules ont été infectées!"
+      },
+      en: {
+        title: "the COVID-19 Game",
+        resetBtn: "Reset the game",
+        showRules: "Show instructions",
+        hideRules: "Hide instructions",
+        rules: [
+          "COVID-19 Game (created by Joel Sandé, Saguenay) for educational purposes: learning while having fun.",
+          "- A game to support school learning.",
+          "- A single COVID-19 virus appears at the start, with green cells to protect.",
+          "- Viruses infect cells (green), then destroy them.",
+          "- A virus may decide to pass through a cell, or infect it.",
+          "- Upon infection, 2 viruses spread.",
+          "- Click on the screen to create a vaccine (Moderna, Pfizer or Novavax).",
+          "- Vaccines move on their own or can be moved with the mouse.",
+          "- On contact with a vaccine, the virus is eliminated.",
+          "- If all viruses disappear, click to generate 10 viruses, which resets the round.",
+          "- Speeds increase with each re-generation.",
+          "- The level increases with each re-generation: unlock titles (🥉🥈🥇🏅🏆👑) !",
+          "- If you go beyond level 5, take a screenshot and send it to oremi.joel@gmail.com: at the end of each month, 10 people will be selected among the emails received to win prizes!",
+          "- ",
+          "- * * * Please share this educational game far and wide :)"
+        ],
+        badges: ['', '🥉 Recruit', '🥈 Fighter', '🥇 Veteran', '🏅 Expert', '🏆 Champion', '👑 Legend'],
+        levelUpNormal: (level, badge) => `Level ${level} — ${badge}`,
+        levelUpRecord: (level, badge) => `Level ${level} — ${badge} — YOU BEAT THE RECORD!`,
+        recordText: (recordLevel, recordHolder, personalBest) => `(Record: ${recordLevel}, ${recordHolder} · Your best: ${personalBest})`,
+        scoreText: (sc, level, badge) => `Score: ${sc}   Level ${level}${badge ? ' ' + badge : ''}`,
+        countersText: (v, c, vac) => `Active viruses: ${v}   Remaining cells: ${c}   Vaccines: ${vac}`,
+        gameOver: "All cells have been infected!"
+      },
+      es: {
+        title: "el Juego del COVID-19",
+        resetBtn: "Reiniciar la partida",
+        showRules: "Mostrar instrucciones",
+        hideRules: "Ocultar instrucciones",
+        rules: [
+          "Juego del COVID-19 (creado por Joel Sandé, Saguenay) con fines educativos: aprendo divirtiéndome.",
+          "- Juego para facilitar el aprendizaje escolar.",
+          "- Al principio aparece un único virus Covid-19, con células verdes que proteger.",
+          "- Los virus infectan las células (verdes) y luego las destruyen.",
+          "- Un virus puede decidir atravesar una célula, o infectarla.",
+          "- Al infectarse, se propagan 2 virus.",
+          "- Haz clic en la pantalla para crear una vacuna (Moderna, Pfizer o Novavax).",
+          "- Las vacunas se mueven solas o pueden moverse con el ratón.",
+          "- Al contacto con una vacuna, el virus es eliminado.",
+          "- Si todos los virus desaparecen, haz clic para generar 10 virus, lo que reinicia la partida.",
+          "- Las velocidades aumentan en cada regeneración.",
+          "- El nivel aumenta en cada regeneración: ¡desbloquea títulos (🥉🥈🥇🏅🏆👑)!",
+          "- Si superas el nivel 5, toma una captura de pantalla y envíala a oremi.joel@gmail.com: al final de cada mes, se seleccionarán 10 personas entre los correos recibidos para recibir regalos!",
+          "- ",
+          "- * * * Por favor, comparte masivamente este juego educativo :)"
+        ],
+        badges: ['', '🥉 Recluta', '🥈 Combatiente', '🥇 Veterano', '🏅 Experto', '🏆 Campeón', '👑 Leyenda'],
+        levelUpNormal: (level, badge) => `Nivel ${level} — ${badge}`,
+        levelUpRecord: (level, badge) => `Nivel ${level} — ${badge} — ¡SUPERAS EL RÉCORD!`,
+        recordText: (recordLevel, recordHolder, personalBest) => `(Récord: ${recordLevel}, ${recordHolder} · Tu mejor: ${personalBest})`,
+        scoreText: (sc, level, badge) => `Puntuación: ${sc}   Nivel ${level}${badge ? ' ' + badge : ''}`,
+        countersText: (v, c, vac) => `Virus activos: ${v}   Células restantes: ${c}   Vacunas: ${vac}`,
+        gameOver: "¡Todas las células han sido infectadas!"
+      },
+      de: {
+        title: "das COVID-19-Spiel",
+        resetBtn: "Spiel zurücksetzen",
+        showRules: "Anleitung anzeigen",
+        hideRules: "Anleitung ausblenden",
+        rules: [
+          "COVID-19-Spiel (erstellt von Joel Sandé, Saguenay) zu Bildungszwecken: Lernen mit Spaß.",
+          "- Spiel zur Unterstützung des schulischen Lernens.",
+          "- Zu Beginn erscheint nur ein einziges Covid-19-Virus, mit grünen Zellen, die es zu schützen gilt.",
+          "- Die Viren infizieren die Zellen (grün) und zerstören sie dann.",
+          "- Ein Virus kann sich entscheiden, eine Zelle zu durchqueren oder sie zu infizieren.",
+          "- Bei einer Infektion breiten sich 2 Viren aus.",
+          "- Klicke auf den Bildschirm, um einen Impfstoff zu erzeugen (Moderna, Pfizer oder Novavax).",
+          "- Die Impfstoffe bewegen sich von selbst oder können mit der Maus bewegt werden.",
+          "- Bei Kontakt mit einem Impfstoff wird das Virus eliminiert.",
+          "- Wenn alle Viren verschwinden, klicke, um 10 neue Viren zu erzeugen, was die Runde zurücksetzt.",
+          "- Die Geschwindigkeiten erhöhen sich bei jeder Neuerzeugung.",
+          "- Das Level steigt bei jeder Neuerzeugung: schalte Titel frei (🥉🥈🥇🏅🏆👑)!",
+          "- Wenn du Level 5 überschreitest, mach einen Screenshot und schick ihn an oremi.joel@gmail.com: am Ende jedes Monats werden 10 Personen unter den erhaltenen E-Mails ausgewählt, um Geschenke zu erhalten!",
+          "- ",
+          "- * * * Bitte teile dieses Lernspiel fleißig :)"
+        ],
+        badges: ['', '🥉 Rekrut', '🥈 Kämpfer', '🥇 Veteran', '🏅 Experte', '🏆 Champion', '👑 Legende'],
+        levelUpNormal: (level, badge) => `Level ${level} — ${badge}`,
+        levelUpRecord: (level, badge) => `Level ${level} — ${badge} — DU ÜBERTRIFFST DEN REKORD!`,
+        recordText: (recordLevel, recordHolder, personalBest) => `(Rekord: ${recordLevel}, ${recordHolder} · Deine Bestleistung: ${personalBest})`,
+        scoreText: (sc, level, badge) => `Punktzahl: ${sc}   Level ${level}${badge ? ' ' + badge : ''}`,
+        countersText: (v, c, vac) => `Aktive Viren: ${v}   Verbleibende Zellen: ${c}   Impfstoffe: ${vac}`,
+        gameOver: "Alle Zellen wurden infiziert!"
+      },
+      it: {
+        title: "il Gioco del COVID-19",
+        resetBtn: "Reimposta la partita",
+        showRules: "Mostra istruzioni",
+        hideRules: "Nascondi istruzioni",
+        rules: [
+          "Gioco del COVID-19 (creato da Joel Sandé, Saguenay) a scopo educativo: imparo divertendomi.",
+          "- Gioco per facilitare l'apprendimento scolastico.",
+          "- All'inizio appare un solo virus Covid-19, con cellule verdi da proteggere.",
+          "- I virus infettano le cellule (verdi), poi le distruggono.",
+          "- Un virus può decidere di attraversare una cellula, oppure infettarla.",
+          "- All'infezione, si propagano 2 virus.",
+          "- Clicca sullo schermo per creare un vaccino (Moderna, Pfizer o Novavax).",
+          "- I vaccini si muovono da soli o possono essere spostati con il mouse.",
+          "- Al contatto con un vaccino, il virus viene eliminato.",
+          "- Se tutti i virus scompaiono, clicca per generare 10 virus, il che resetta la partita.",
+          "- Le velocità aumentano ad ogni rigenerazione.",
+          "- Il livello aumenta ad ogni rigenerazione: sblocca titoli (🥉🥈🥇🏅🏆👑)!",
+          "- Se superi il livello 5, fai uno screenshot e inviala a oremi.joel@gmail.com: alla fine di ogni mese, 10 persone saranno selezionate tra le email ricevute per ricevere regali!",
+          "- ",
+          "- * * * Per favore condividi in massa questo gioco educativo :)"
+        ],
+        badges: ['', '🥉 Recluta', '🥈 Combattente', '🥇 Veterano', '🏅 Esperto', '🏆 Campione', '👑 Leggenda'],
+        levelUpNormal: (level, badge) => `Livello ${level} — ${badge}`,
+        levelUpRecord: (level, badge) => `Livello ${level} — ${badge} — SUPERI IL RECORD!`,
+        recordText: (recordLevel, recordHolder, personalBest) => `(Record: ${recordLevel}, ${recordHolder} · Il tuo migliore: ${personalBest})`,
+        scoreText: (sc, level, badge) => `Punteggio: ${sc}   Livello ${level}${badge ? ' ' + badge : ''}`,
+        countersText: (v, c, vac) => `Virus attivi: ${v}   Cellule rimanenti: ${c}   Vaccini: ${vac}`,
+        gameOver: "Tutte le cellule sono state infettate!"
+      }
+    };
+
+    let currentLang = localStorage.getItem('covidGameLang') || 'fr';
+    function tr() { return COVID_TRANSLATIONS[currentLang]; }
+
     // Canvas et contexte
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
@@ -198,12 +381,7 @@
     // Récompenses virtuelles débloquées selon le niveau atteint
     function getBadge(lvl) {
       if (lvl <= 0) return '';
-      if (lvl === 1) return '🥉 Recrue';
-      if (lvl === 2) return '🥈 Combattant';
-      if (lvl === 3) return '🥇 Vétéran';
-      if (lvl === 4) return '🏅 Expert';
-      if (lvl === 5) return '🏆 Champion';
-      return '👑 Légende';
+      return tr().badges[Math.min(lvl, 6)];
     }
 
     function levelUp() {
@@ -215,8 +393,8 @@
       const beatsRecord = level > recordLevel;
       const badge = getBadge(level);
       levelUpMessage = beatsRecord
-        ? `Niveau ${level} — ${badge} — VOUS DÉPASSEZ LE RECORD !`
-        : `Niveau ${level} — ${badge}`;
+        ? tr().levelUpRecord(level, badge)
+        : tr().levelUpNormal(level, badge);
       levelUpUntil = Date.now() + 2500;
     }
 
@@ -348,7 +526,7 @@
     const toggleRulesBtn = document.getElementById('toggleRulesBtn');
     toggleRulesBtn.addEventListener('click', () => {
       showRules = !showRules;
-      toggleRulesBtn.textContent = showRules ? 'Masquer les instructions' : 'Afficher les instructions';
+      toggleRulesBtn.textContent = showRules ? tr().hideRules : tr().showRules;
     });
 
     // Affichage règles & score
@@ -358,23 +536,7 @@
       const fs = Math.max(12, logicalWidth * 0.012);
       ctx.font = `${fs}px Arial`;
       ctx.textAlign = 'left';
-      const rules = [
-        "Jeu du COVID-19 ( créé par Joel Sandé, Saguenay ) à but éducatif : j'apprends en m'amusant.",
-        "- Jeu pour faciliter un apprentissage scolaire.",
-        "- Un seul virus Covid-19 apparaît au début, avec des cellules vertes à protéger.",
-        "- Les virus infectent les cellules (vertes), puis les détruisent.",
-        "- Un virus peu décider de traverser une cellule, ou l'infecter.",
-        "- À l'infection, 2 virus se propagent.",
-        "- Cliquez sur l'écran pour créer un vaccin (Moderna, Pfizer ou Novavax).",
-        "- Les vaccins se déplacent seuls ou peuvent être déplacés avec la souris.",
-        "- Au contact d'un vaccin, le virus est éliminé.",
-        "- Si tous les virus disparaissent, cliquez pour générer 10 virus, ce qui resset la partie.",
-        "- Les vitesses augmentent à chaque re-génération.",
-        "- Le niveau augmente à chaque re-génération : débloquez des titres (🥉🥈🥇🏅🏆👑) !",
-        "- Si vous dépassez le niveau 5, prenez une capture d'écran et envoyez-la à oremi.joel@gmail.com : à la fin de chaque mois, 10 personnes seront sélectionnées parmi les courriels reçus pour recevoir des cadeaux !",
-        "- ",
-        "- * * * Merci de partager massivement ce jeu éducatif :)"
-      ];
+      const rules = tr().rules;
       const scoreFs = Math.max(16, logicalWidth * 0.02);
       const compteurFs = Math.max(12, logicalWidth * 0.012);
       const startY = scoreTopOffset + scoreFs * 2 + 4 + compteurFs + 6 + 25; // décalé sous l'affichage du record, du score et le compteur
@@ -425,13 +587,13 @@
       ctx.font = `${fs}px Arial`;
       ctx.textAlign = 'center';
       const badge = getBadge(level);
-      const recordTxt = `(Record : ${recordLevel}, ${recordHolder} · Votre meilleur : ${personalBest})`;
+      const recordTxt = tr().recordText(recordLevel, recordHolder, personalBest);
       ctx.fillText(recordTxt, logicalWidth / 2, scoreTopOffset + fs);
-      const scoreNiveauTxt = `Score : ${sc}   Niveau ${level}${badge ? ' ' + badge : ''}`;
+      const scoreNiveauTxt = tr().scoreText(sc, level, badge);
       ctx.fillText(scoreNiveauTxt, logicalWidth / 2, scoreTopOffset + fs * 2 + 4);
       const compteurFs = Math.max(12, logicalWidth * 0.012);
       ctx.font = `${compteurFs}px Arial`;
-      ctx.fillText(`Virus actifs : ${viruses.length}   Cellules restantes : ${cells.length}   Vaccins : ${vaccines.length}`, logicalWidth / 2, scoreTopOffset + fs * 2 + 4 + compteurFs + 6);
+      ctx.fillText(tr().countersText(viruses.length, cells.length, vaccines.length), logicalWidth / 2, scoreTopOffset + fs * 2 + 4 + compteurFs + 6);
     }
 
     function drawLevelUpBanner() {
@@ -469,10 +631,40 @@
         const fs = Math.max(30, logicalWidth * 0.04);
         ctx.font = `${fs}px Arial`;
         ctx.textAlign = 'center';
-        ctx.fillText('Toutes les cellules ont été infectées!', logicalWidth / 2, logicalHeight / 2);
+        ctx.fillText(tr().gameOver, logicalWidth / 2, logicalHeight / 2);
       }
       requestAnimationFrame(animate);
     }
+
+    // Met à jour les textes statiques (titre, boutons) selon la langue courante
+    function updateStaticText() {
+      document.title = tr().title;
+      document.documentElement.lang = currentLang;
+      document.getElementById('resetBtn').textContent = tr().resetBtn;
+      toggleRulesBtn.textContent = showRules ? tr().hideRules : tr().showRules;
+    }
+
+    // Sélecteur de langue (FR/EN/ES/DE/IT)
+    (function(){
+      const container = document.getElementById('langSwitcher');
+      const langs = ['fr', 'en', 'es', 'de', 'it'];
+      langs.forEach(lang => {
+        const btn = document.createElement('button');
+        btn.className = 'lang-btn' + (lang === currentLang ? ' active' : '');
+        btn.dataset.lang = lang;
+        btn.textContent = lang.toUpperCase();
+        btn.addEventListener('click', () => {
+          currentLang = lang;
+          localStorage.setItem('covidGameLang', lang);
+          container.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          updateStaticText();
+        });
+        container.appendChild(btn);
+      });
+    })();
+
+    updateStaticText();
 
     // Initialise tout
     init();
